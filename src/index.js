@@ -12,7 +12,11 @@ app.get('/health', (req, res) => {
 });
 
 app.get('/tasks', (req, res) => {
-  res.json(tasks);
+  const sorted = [...tasks].sort((a, b) => {
+    if (a.completed !== b.completed) return a.completed ? 1 : -1;
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+  res.json(sorted);
 });
 
 app.get('/tasks/:id', (req, res) => {
@@ -30,6 +34,7 @@ app.post('/tasks', (req, res) => {
     title,
     description: description || '',
     completed: false,
+    completedAt: null,
     createdAt: new Date().toISOString()
   };
 
@@ -42,6 +47,18 @@ app.put('/tasks/:id', (req, res) => {
   if (index === -1) return res.status(404).json({ error: 'Task not found' });
 
   tasks[index] = { ...tasks[index], ...req.body, id: tasks[index].id };
+  res.json(tasks[index]);
+});
+
+app.patch('/tasks/:id', (req, res) => {
+  const index = tasks.findIndex(t => t.id === req.params.id);
+  if (index === -1) return res.status(404).json({ error: 'Task not found' });
+
+  const { completed } = req.body;
+  if (typeof completed === 'boolean') {
+    tasks[index].completed = completed;
+    tasks[index].completedAt = completed ? new Date().toISOString() : null;
+  }
   res.json(tasks[index]);
 });
 
