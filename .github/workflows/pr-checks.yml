@@ -6,7 +6,6 @@ on:
       - main
     types: [opened, synchronize, reopened]
 
-# Cancel in-progress runs when a new commit is pushed to the PR
 concurrency:
   group: pr-checks-${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -17,9 +16,6 @@ permissions:
   security-events: write
 
 jobs:
-  # ────────────────────────────────────────────
-  # Job 1 — Secrets scan with Gitleaks
-  # ────────────────────────────────────────────
   gitleaks:
     name: Gitleaks — Secret Scan
     runs-on: ubuntu-latest
@@ -27,18 +23,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for commit-by-commit scan
+          fetch-depth: 0
 
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          config-path: .gitleaks.toml
 
-  # ────────────────────────────────────────────
-  # Job 2 — Vulnerability scan with Trivy
-  # ────────────────────────────────────────────
   trivy:
     name: Trivy — Vulnerability Scan
     runs-on: ubuntu-latest
@@ -52,9 +43,10 @@ jobs:
           scan-type: fs
           scan-ref: .
           severity: CRITICAL,HIGH
-          exit-code: 1
+          exit-code: 0
           ignore-unfixed: true
           format: table
+          output: trivy-fs-results.txt
 
       - name: Run Trivy Dockerfile scan
         uses: aquasecurity/trivy-action@master
@@ -62,12 +54,105 @@ jobs:
           scan-type: config
           scan-ref: Dockerfile
           severity: CRITICAL,HIGH
-          exit-code: 1
+          exit-code: 0
           format: table
+          output: trivy-dockerfile-results.txt
 
-  # ────────────────────────────────────────────
-  # Job 3 — PR metadata check (lightweight, fast)
-  # ────────────────────────────────────────────
+      - name: Comment PR with scan results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const fsResults = fs.existsSync('trivy-fs-results.txt') 
+              ? fs.readFileSync('trivy-fs-results.txt', 'utf8') 
+              : 'Scan did not produce output';
+            const dockerResults = fs.existsSync('trivy-dockerfile-results.txt') 
+              ? fs.readFileSync('trivy-dockerfile-results.txt', 'utf8') 
+              : 'Scan did not produce output';
+            
+            const fsClean = !fsResults.includes('FAIL') && !fsResults.includes('Total: ');
+            const dockerClean = !dockerResults.includes('FAILURES: ') || dockerResults.includes('FAILURES: 0');
+            
+            const fsIcon = fsClean ? '✅' : '❌';
+            const dockerIcon = dockerClean ? '✅' : '❌';
+            
+            const body = `## 🔒 Trivy Security Scan Results
+            
+            ### ${fsIcon} Filesystem scan (npm dependencies)
+            \`\`\`
+            ${fsResults.trim() || 'No vulnerabilities found'}
+            \`\`\`
+            
+            ### ${dockerIcon} Dockerfile scan (container configuration)
+            \`\`\`
+            ${dockerResults.trim() || 'No misconfigurations found'}
+            \`\`\`
+            
+            ---
+            _Severity threshold: HIGH and CRITICAL · [Workflow run](${context.payload.pull_request.html_url}/checks)_
+            `;
+            
+            // Find existing comment to update (avoid spam on each push)
+            const comments = await github.rest.issues.listComments({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            
+            const existing = comments.data.find(c => 
+              c.user.type === 'Bot' && c.body.includes('🔒 Trivy Security Scan Results')
+            );
+            
+            if (existing) {
+              await github.rest.issues.updateComment({
+                comment_id: existing.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            }
+
+      - name: Add to job summary
+        if: always()
+        run: |
+          echo "## 🔒 Trivy Security Scan" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Filesystem scan" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat trivy-fs-results.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "No output"
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Dockerfile scan" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat trivy-dockerfile-results.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "No output"
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail check if vulnerabilities found
+        run: |
+          FAIL=0
+          if grep -E "FAILURES: [1-9]|Total: [1-9]" trivy-fs-results.txt 2>/dev/null; then
+            echo "❌ Filesystem scan found vulnerabilities"
+            FAIL=1
+          fi
+          if grep -E "FAILURES: [1-9]" trivy-dockerfile-results.txt 2>/dev/null; then
+            echo "❌ Dockerfile scan found misconfigurations"
+            FAIL=1
+          fi
+          if [ $FAIL -eq 1 ]; then
+            echo ""
+            echo "See PR comment or job summary for details."
+            exit 1
+          fi
+          echo "✅ All scans passed"
+
   pr-checks:
     name: PR Metadata
     runs-on: ubuntu-latest
