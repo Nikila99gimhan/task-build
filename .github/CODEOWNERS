@@ -1,0 +1,29 @@
+# CODEOWNERS — defines required reviewers for PRs
+# Syntax: <pattern>  <owner1> <owner2>
+# More specific rules override general ones
+# See: https://docs.github.com/en/repositories/managing-your-repositories-settings-and-security/customizing-your-repository/about-code-owners
+
+# Default — Nikila reviews everything unless overridden below
+*                       @Nikila99gimhan
+
+# Application source code
+/src/                   @Nikila99gimhan
+/test/                  @Nikila99gimhan
+
+# Build & infrastructure files
+Dockerfile              @Nikila99gimhan
+buildspec.yml           @Nikila99gimhan
+package.json            @Nikila99gimhan
+package-lock.json       @Nikila99gimhan
+
+# CI/CD configuration
+/.github/               @Nikila99gimhan
+/.github/workflows/     @Nikila99gimhan
+
+# Security configuration
+.gitleaks.toml          @Nikila99gimhan
+.github/CODEOWNERS      @Nikila99gimhan
+
+# Documentation
+*.md                    @Nikila99gimhan
+README.md               @Nikila99gimhan
