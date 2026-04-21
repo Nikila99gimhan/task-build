@@ -1,12 +1,16 @@
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
+# Copy package files first (better layer caching)
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
-COPY src/ ./src/
-COPY public/ ./public/
+# Copy app code
+COPY src ./src
+
+# Run as non-root user (node user UID 1000 ships with node:alpine)
+USER node
 
 EXPOSE 3000
 
