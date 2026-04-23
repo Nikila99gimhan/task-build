@@ -1,0 +1,34 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo "Installing Trivy..."
+      - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+
+  pre_build:
+    commands:
+      - echo "Logging in to ECR..."
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - IMAGE_TAG=$(cat imagedefinitions.json | grep -o '"imageUri":"[^"]*"' | grep -o '[^:]*$' | tr -d '"')
+      - FULL_IMAGE=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO_NAME:$IMAGE_TAG
+      - echo "Scanning image $FULL_IMAGE"
+
+  build:
+    commands:
+      - echo "Pulling image for scan..."
+      - docker pull $FULL_IMAGE
+      - echo "Running Trivy vulnerability scan..."
+      - trivy image --severity CRITICAL,HIGH --format table --output scan-results.txt $FULL_IMAGE || true
+      - cat scan-results.txt
+      - echo "Running Trivy scan with exit code..."
+      - trivy image --severity CRITICAL --exit-code 1 --ignore-unfixed $FULL_IMAGE
+
+  post_build:
+    commands:
+      - echo "Security scan passed"
+
+artifacts:
+  files:
+    - imagedefinitions.json
+    - scan-results.txt
