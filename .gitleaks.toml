@@ -1,1 +1,34 @@
+title = "task-api gitleaks config"
 
+[extend]
+useDefault = true
+
+# Allow common false positives in test files
+[allowlist]
+description = "Global allowlist"
+paths = [
+    '''(.*?)(jpg|gif|doc|pdf|bin)$''',
+    '''node_modules/''',
+    '''package-lock\.json$''',
+    '''yarn\.lock$''',
+]
+
+# Allow obvious test/example values
+regexes = [
+    '''(?i)example[_-]?key''',
+    '''(?i)test[_-]?token''',
+    '''dummy''',
+    '''placeholder''',
+    '''xxxx+''',
+]
+
+# Custom rule example — block AWS account IDs in source
+[[rules]]
+id = "aws-account-id"
+description = "AWS Account ID found"
+regex = '''\b\d{12}\b'''
+tags = ["aws", "account"]
+[rules.allowlist]
+regexes = [
+    '''320026168830''',  # Allow only the demo account ID
+]
