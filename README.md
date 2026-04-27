@@ -288,7 +288,7 @@ PHASE 2 — AWS CodePipeline (4 stages)
                                                   ┌─────────┐
                                                   │  Live   │
                                                   └─────────┘
-```
+
  
 ### Phase 1 — GitHub Validation
  
@@ -306,7 +306,7 @@ Direct pushes to `main` are rejected by GitHub itself, regardless of user permis
 <summary><b>👤 CODEOWNERS</b></summary>
 Maps file paths to required reviewers. Touching the buildspec, Dockerfile, or workflow file pulls in a designated owner. In a real team, this is what scales code review without becoming a bottleneck.
  
-```
+
 # .github/CODEOWNERS
 *                       @Nikila99gimhan
 Dockerfile              @Nikila99gimhan
