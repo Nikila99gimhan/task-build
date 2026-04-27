@@ -594,14 +594,4 @@ Every decision in this demo — private subnets, VPC endpoints, immutable artifa
 
 ---
 
-## ⚖️ License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 📞 Contact
-
-For questions, corrections, or to discuss any of these patterns, open an issue on this repository.
-
-Built for the AWS Cloud Captains undergraduate group.
