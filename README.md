@@ -312,7 +312,7 @@ Maps file paths to required reviewers. Touching the buildspec, Dockerfile, or wo
 Dockerfile              @Nikila99gimhan
 buildspec.yml           @Nikila99gimhan
 .github/workflows/      @Nikila99gimhan
-```
+
  
 </details>
 <details>
@@ -337,7 +337,7 @@ Scans the entire commit history of the PR branch for accidentally committed secr
  
 #### Stage 1 → Source
  
-```
+
 ┌──────────────────────────┐
 │ CodeConnections detects  │  ◀── GitHub App webhook
 │ merge to main            │      (event-driven, not polling)
@@ -367,7 +367,7 @@ buildspec.yml phases (in order):
 │          │   │ npm test ◀──── FAIL FAST: tests │   │ imagedef.json│
 │          │   │              │   │ before build │   │              │
 └──────────┘   └──────────────┘   └──────────────┘   └──────────────┘
-```
+
  
 **Tests run in `pre_build`, not `build`** — deliberately. A failing test aborts before any image is built. Broken code never produces a container, never reaches the registry, never threatens production.
  
@@ -390,7 +390,7 @@ The contract between Build and Deploy:
  
 #### Stage 3 → Security Scan (CodeBuild — `task-api-security-scan`)
  
-```
+
 ┌──────────────────────────────────────────┐
 │ Pull image from ECR (just pushed)        │
 │         │                                │
@@ -406,7 +406,7 @@ The contract between Build and Deploy:
 │            Vulnerable image stays        │
 │            in ECR but never deploys      │
 └──────────────────────────────────────────┘
-```
+
  
 **Why scan twice — once at PR, once here?** They scan different things:
 - **PR-time scan** — source code, Dockerfile, declared dependencies
@@ -415,7 +415,7 @@ Together they cover much more surface than either alone.
  
 #### Stage 4 → Deploy (ECS native action)
  
-```
+
 ┌──────────────────────────────────────┐
 │ Read imagedefinitions.json           │
 │         │                            │
@@ -434,7 +434,7 @@ Together they cover much more surface than either alone.
 │  • Circuit breaker auto-rollback     │
 │    if new tasks fail to stabilize    │
 └──────────────────────────────────────┘
-```
+
  
 **Deployment Circuit Breaker** is the strongest single operational safety feature in the stack. If new tasks fail to stabilize, ECS automatically reverts to the last known good task definition. Automatic. No human intervention. No paging. The service self-heals.
  
@@ -477,15 +477,15 @@ Seven controls across GitHub and AWS, each catching a different class of problem
 | 5 | scanOnPush in ECR | AWS | OS-level CVEs at registry-push time |
 | 6 | Trivy in pipeline SecurityScan stage | AWS CodeBuild | CRITICAL CVEs in built image |
 | 7 | Least-privilege IAM (4 separate roles) | AWS | Privilege escalation, blast-radius spread |
- 
-```
+
+
    Source (commits)  →  Build (compiled)   →  Runtime (deployed)
         ↑                     ↑                      ↑
    Gitleaks               Trivy in              IAM least
    Trivy (PR)             pipeline              privilege
    Branch protect         scanOnPush            VPC isolation
    CODEOWNERS             stage                 SG chain
-```
+
  
 **No single failure cascades.** A vulnerable npm package committed in a PR is caught at PR-time by Trivy. A malicious base image is caught at PR-time and again at build-time (database updates between scans). A leaked AWS key is caught by Gitleaks. An over-permissive IAM policy would only be discovered through CloudTrail review or by an attacker exploiting it — which is why we give every service the minimum permissions to do its job and nothing more.
  
@@ -522,7 +522,7 @@ Current:  Rolling Deploy        New:  Blue/Green
 [old][new]──▶[new][new]              ▲                    ▲
                                   Live now           Switch all at once
                                                      or canary 10%→100%
-```
+
  
 CodeDeploy supports all-at-once, linear (gradual % shift over time), and canary (a small % first, then 100%) traffic-shifting strategies. Built-in automatic rollback if errors spike during traffic shift.
  
